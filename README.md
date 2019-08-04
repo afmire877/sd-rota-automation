@@ -1,16 +1,3 @@
-# sd-rota-automation
-
-A simple automation app that web scraps the Sports Direct Rota app and creates google calender event for each shift.
-
-I used Nodejs and puppetter to login and scrape the Sports Direct Web app.
-
-# To run 
-
-`npm install`
-
-
-fill in your payroll and password in the keys.js file
-
 # Sports Direct Automation Script
 
 A simple automation app that web scraps the Sports Direct Rota app and creates google calender event for each shift.
@@ -23,7 +10,12 @@ These instructions will get you a copy of the project up and running on your loc
 
 What things you need to install the software and how to install them
 
-Nodejs 
+* Node.js
+* Google API credentials JSON file
+
+
+
+
 
 ```
 Give examples
@@ -36,36 +28,18 @@ A step by step series of examples that tell you how to get a development env run
 Say what the step will be
 
 ```
-Give the example
+npm install 
 ```
 
-And repeat
+To start the server
 
 ```
-until finished
+npm start 
 ```
 
 End with an example of getting some data out of the system or using it for a little demo
 
-## Running the tests
 
-Explain how to run the automated tests for this system
-
-### Break down into end to end tests
-
-Explain what these tests test and why
-
-```
-Give an example
-```
-
-### And coding style tests
-
-Explain what these tests test and why
-
-```
-Give an example
-```
 
 ## Deployment
 
@@ -73,27 +47,11 @@ Add additional notes about how to deploy this on a live system
 
 ## Built With
 
-* [Nodejs](http://www.dropwizard.io/1.0.2/docs/) - The web framework used
-* [moment](https://maven.apache.org/) - Dependency Management
-* [ROME](https://rometools.github.io/rome/) - Used to generate RSS Feeds
+* [Node](http://www.dropwizard.io/1.0.2/docs/) - The web framework used
+* [moment](https://momentjs.com/) - Time and date library
+* [Google Calender API ](https://developers.google.com/calendar/) - Used to create the events in google
 
-## Contributing
 
-Please read [CONTRIBUTING.md](https://gist.github.com/PurpleBooth/b24679402957c63ec426) for details on our code of conduct, and the process for submitting pull requests to us.
-
-## Versioning
-
-We use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/your/project/tags). 
-
-## Authors
-
-* **Billie Thompson** - *Initial work* - [PurpleBooth](https://github.com/PurpleBooth)
-
-See also the list of [contributors](https://github.com/your/project/contributors) who participated in this project.
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
 
 ## Acknowledgments
 
