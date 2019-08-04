@@ -1,4 +1,0 @@
-node_modules/puppeteer/.local-chromium/win64-672088/chrome-win/chrome_child.dll filter=lfs diff=lfs merge=lfs -text
-node_modules/puppeteer/.local-chromium/win64-672088/chrome-win/chrome.dll filter=lfs diff=lfs merge=lfs -text
-node_modules/puppeteer/.local-chromium/win64-672088/chrome-win/interactive_ui_tests.exe filter=lfs diff=lfs merge=lfs -text
-node_modules/puppeteer/.local-chromium/win64-672088/chrome-win filter=lfs diff=lfs merge=lfs -text
