@@ -1,0 +1,19 @@
+{
+  "name": "sd-rota-automation",
+  "version": "1.0.0",
+  "description": "A simple Rota automation app, creates google calender events",
+  "main": "app.js",
+  "scripts": {
+    "test": "node ."
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "googleapis": "^39.2.0",
+    "moment": "^2.24.0",
+    "moment-timezone": "^0.5.26",
+    "os": "^0.1.1",
+    "path": "^0.12.7",
+    "puppeteer": "^1.18.1"
+  }
+}
