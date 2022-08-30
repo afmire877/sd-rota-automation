@@ -11,7 +11,7 @@
   "dependencies": {
     "googleapis": "^39.2.0",
     "moment": "^2.24.0",
-    "moment-timezone": "^0.5.26",
+    "moment-timezone": "^0.5.35",
     "os": "^0.1.1",
     "path": "^0.12.7",
     "puppeteer": "^1.18.1"
