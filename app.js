@@ -6,12 +6,22 @@ const moment = require('moment-timezone');
 const conf = require('./conf');
 const credentials = require('./keys');
 
+/**
+ * Creates and returns a Google OAuth2 client using credentials from a local file.
+ *
+ * @returns {OAuth2Client} An OAuth2 client configured with client ID, secret, and redirect URI.
+ */
 function getOAuthClient() {
   const content = fs.readFileSync(conf.CLIENT_PATH);
   const { client_id, client_secret, redirect_uris } = JSON.parse(content).installed;
   return new google.auth.OAuth2(client_id, client_secret, redirect_uris[0]);
 }
 
+/**
+ * Initiates the OAuth2 authorization flow to obtain and store a Google API access token.
+ *
+ * Prompts the user to visit an authorization URL and enter the resulting code, then exchanges the code for an access token and saves it to disk for future use.
+ */
 function requestToken() {
   const oAuth2Client = getOAuthClient();
   const authUrl = oAuth2Client.generateAuthUrl({
@@ -30,12 +40,25 @@ function requestToken() {
   });
 }
 
+/**
+ * Returns an authenticated Google Calendar API client using stored OAuth2 credentials.
+ *
+ * @returns {import('googleapis').calendar_v3.Calendar} An authenticated Google Calendar client.
+ */
 function getCalendarClient() {
   const oauth2Client = getOAuthClient();
   oauth2Client.setCredentials(JSON.parse(fs.readFileSync(conf.TOKEN_PATH)));
   return google.calendar({ version: 'v3', auth: oauth2Client });
 }
 
+/**
+ * Inserts an event into the configured Google Calendar.
+ *
+ * @param {object} event - The event object to be added to the calendar.
+ *
+ * @remark
+ * Logs the event link on success or logs an error if the insertion fails.
+ */
 async function createEvent(event) {
   try {
     const calendar = getCalendarClient();
@@ -49,6 +72,15 @@ async function createEvent(event) {
   }
 }
 
+/**
+ * Creates a Google Calendar event object for a work shift with specified date, start and end times.
+ *
+ * @param {string} date - The date of the shift in 'DD MMM YYYY' format.
+ * @param {string} start - The shift start time in 'HH:mm' format.
+ * @param {string} end - The shift end time in 'HH:mm' format.
+ * @param {string} [summary='Sports Direct shift'] - The event summary or title.
+ * @returns {Object} A calendar event object with correctly formatted start and end times in the 'Europe/Belfast' timezone.
+ */
 function createShiftEvent(date, start, end, summary = 'Sports Direct shift') {
   return {
     summary,
@@ -63,6 +95,11 @@ function createShiftEvent(date, start, end, summary = 'Sports Direct shift') {
   };
 }
 
+/**
+ * Automates login to the Sports Direct employee portal and scrapes work shift data for the current and next week.
+ *
+ * @returns {Promise<{thisWeek: Array, nextWeek: Array}>} An object containing arrays of shift data for this week and next week, each including the week date and daily shift details.
+ */
 async function loginAndScrape() {
   const browser = await puppeteer.launch();
   const page = await browser.newPage();
@@ -106,6 +143,13 @@ async function loginAndScrape() {
   return data;
 }
 
+/**
+ * Scrapes next week's work shifts and creates corresponding events in Google Calendar.
+ *
+ * Automates the process of logging into the employee portal, extracting shift data for the upcoming week, and creating calendar events for each shift.
+ *
+ * @remark Only next week's shifts are processed and added to the calendar.
+ */
 async function main() {
   try {
     const shifts = await loginAndScrape();
