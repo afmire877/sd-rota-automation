@@ -6,6 +6,19 @@ const moment = require('moment-timezone');
 const conf = require('./conf');
 const credentials = require('./keys');
 
+const SELECTORS = {
+  USERNAME: '#dnn_ctr462_Login_Login_DNN_txtUsername',
+  PASSWORD: '#dnn_ctr462_Login_Login_DNN_txtPassword',
+  LOGIN_BUTTON: '#dnn_ctr462_Login_Login_DNN_cmdLogin',
+  THIS_WEEK_HEADER: '#dnn_ctr454_ModuleContent > div > div:nth-child(1) > div > h3',
+  NEXT_WEEK_HEADER: '#dnn_ctr454_WorkingHoursView_NextWeekPanel > div:nth-child(1) > div > h3'
+};
+
+const URLS = {
+  LOGIN: 'https://memployees.sportsdirectservices.com',
+  ROTA: 'https://memployees.sportsdirectservices.com/Home/Working-Hours'
+};
+
 function getOAuthClient() {
   const content = fs.readFileSync(conf.CLIENT_PATH);
   const { client_id, client_secret, redirect_uris } = JSON.parse(content).installed;
@@ -18,8 +31,13 @@ function requestToken() {
     access_type: 'offline',
     scope: conf.SCOPES,
   });
+  
   console.log('Authorize this app by visiting this url:', authUrl);
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  const rl = readline.createInterface({ 
+    input: process.stdin, 
+    output: process.stdout 
+  });
+  
   rl.question('Enter the code here: ', code => {
     rl.close();
     oAuth2Client.getToken(code, (err, token) => {
@@ -64,59 +82,83 @@ function createShiftEvent(date, start, end, summary = 'Sports Direct shift') {
 }
 
 async function loginAndScrape() {
-  const browser = await puppeteer.launch();
-  const page = await browser.newPage();
-  await page.goto('https://memployees.sportsdirectservices.com', { waitUntil: 'networkidle2' });
+  let browser;
+  try {
+    browser = await puppeteer.launch();
+    const page = await browser.newPage();
+    await page.goto(URLS.LOGIN, { waitUntil: 'networkidle2' });
 
-  await page.type('#dnn_ctr462_Login_Login_DNN_txtUsername', credentials.payroll);
-  await page.type('#dnn_ctr462_Login_Login_DNN_txtPassword', credentials.password);
-  await page.click('#dnn_ctr462_Login_Login_DNN_cmdLogin');
-  await page.waitForTimeout(1000);
+    await page.type(SELECTORS.USERNAME, credentials.payroll);
+    await page.type(SELECTORS.PASSWORD, credentials.password);
+    await page.click(SELECTORS.LOGIN_BUTTON);
+    await page.waitForTimeout(1000);
 
-  const rota = await browser.newPage();
-  await rota.goto('https://memployees.sportsdirectservices.com/Home/Working-Hours', { waitUntil: 'networkidle2' });
+    const rota = await browser.newPage();
+    await rota.goto(URLS.ROTA, { waitUntil: 'networkidle2' });
 
-  const data = await rota.evaluate(() => {
-    const parseDate = node => {
-      const text = node.innerText.split('-')[1].trim();
-      return text.slice(1, -1);
-    };
-    const scrapeTable = (table, weekDate) => {
-      const week = [weekDate];
-      table.querySelectorAll('tr').forEach(row => {
-        const day = row.cells[0].innerText;
-        const start = row.cells[1].innerText.match(/\d\d:\d\d/);
-        const end = row.cells[2].innerText.match(/\d\d:\d\d/);
-        if (start && end) {
-          week.push({ day, start: start[0], end: end[0] });
-        }
-      });
-      return week;
-    };
-    const bodies = document.querySelectorAll('tbody');
-    const thisWeekDate = parseDate(document.querySelector('#dnn_ctr454_ModuleContent > div > div:nth-child(1) > div > h3'));
-    const nextWeekDate = parseDate(document.querySelector('#dnn_ctr454_WorkingHoursView_NextWeekPanel > div:nth-child(1) > div > h3'));
-    return {
-      thisWeek: scrapeTable(bodies[0], thisWeekDate),
-      nextWeek: scrapeTable(bodies[1], nextWeekDate),
-    };
-  });
+    const data = await rota.evaluate(() => {
+      const parseDate = node => {
+        const text = node.innerText.split('-')[1].trim();
+        return text.slice(1, -1);
+      };
+      
+      const scrapeTable = (table, weekDate) => {
+        const week = [weekDate];
+        table.querySelectorAll('tr').forEach(row => {
+          const day = row.cells[0].innerText;
+          const start = row.cells[1].innerText.match(/\d\d:\d\d/);
+          const end = row.cells[2].innerText.match(/\d\d:\d\d/);
+          
+          if (start && end) {
+            week.push({ 
+              day, 
+              start: start[0], 
+              end: end[0] 
+            });
+          }
+        });
+        return week;
+      };
+      
+      const bodies = document.querySelectorAll('tbody');
+      const thisWeekDate = parseDate(
+        document.querySelector('#dnn_ctr454_ModuleContent > div > div:nth-child(1) > div > h3')
+      );
+      const nextWeekDate = parseDate(
+        document.querySelector('#dnn_ctr454_WorkingHoursView_NextWeekPanel > div:nth-child(1) > div > h3')
+      );
+      
+      return {
+        thisWeek: scrapeTable(bodies[0], thisWeekDate),
+        nextWeek: scrapeTable(bodies[1], nextWeekDate),
+      };
+    });
 
-  await browser.close();
-  return data;
+    return data;
+  } catch (error) {
+    console.error('Error during login and scrape:', error);
+    throw error;
+  } finally {
+    if (browser) {
+      await browser.close();
+    }
+  }
 }
 
 async function main() {
   try {
     const shifts = await loginAndScrape();
     const nextWeekDate = shifts.nextWeek[0];
+    
     shifts.nextWeek.slice(1).forEach(shift => {
-      const date = moment(nextWeekDate, 'DD MMM YYYY').day(shift.day).format('DD MMM YYYY');
+      const date = moment(nextWeekDate, 'DD MMM YYYY')
+        .day(shift.day)
+        .format('DD MMM YYYY');
       const event = createShiftEvent(date, shift.start, shift.end);
       createEvent(event);
     });
   } catch (err) {
-    console.error(err);
+    console.error('Main function error:', err);
   }
 }
 
