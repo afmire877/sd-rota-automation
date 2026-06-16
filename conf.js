@@ -1,13 +1,9 @@
-
-const path = require('path');
-const os = require('os');
-
 module.exports = {
   SCOPES: ['https://www.googleapis.com/auth/calendar.events'],
-  CLIENT_PATH: './client_secret.json',
-  TOKEN_PATH: './token.json',
-  CALENDAR_ID: '6pesae36o0h2ridoea6ashoaq4@group.calendar.google.com',
-  LIST_ORDER: 'startTime',
-  BULK_RESULT: ['id', 'summary', 'htmlLink'],
-  EVENT_DURATION: 60
+  CLIENT_PATH: process.env.GOOGLE_CLIENT_PATH || './client_secret.json',
+  TOKEN_PATH: process.env.GOOGLE_TOKEN_PATH || './token.json',
+  CALENDAR_ID:
+    process.env.GOOGLE_CALENDAR_ID ||
+    '6pesae36o0h2ridoea6ashoaq4@group.calendar.google.com',
+  EVENT_DURATION: 60,
 };
