@@ -2,21 +2,24 @@ const puppeteer = require('puppeteer');
 const fs = require('fs');
 const readline = require('readline');
 const { google } = require('googleapis');
-const moment = require('moment-timezone');
 const conf = require('./conf');
-const credentials = require('./keys');
+const { getCredentials } = require('./config');
+const { createShiftEvent, resolveShiftDate } = require('./lib/shifts');
+
+const credentials = getCredentials();
 
 const SELECTORS = {
   USERNAME: '#dnn_ctr462_Login_Login_DNN_txtUsername',
   PASSWORD: '#dnn_ctr462_Login_Login_DNN_txtPassword',
   LOGIN_BUTTON: '#dnn_ctr462_Login_Login_DNN_cmdLogin',
   THIS_WEEK_HEADER: '#dnn_ctr454_ModuleContent > div > div:nth-child(1) > div > h3',
-  NEXT_WEEK_HEADER: '#dnn_ctr454_WorkingHoursView_NextWeekPanel > div:nth-child(1) > div > h3'
+  NEXT_WEEK_HEADER:
+    '#dnn_ctr454_WorkingHoursView_NextWeekPanel > div:nth-child(1) > div > h3',
 };
 
 const URLS = {
   LOGIN: 'https://memployees.sportsdirectservices.com',
-  ROTA: 'https://memployees.sportsdirectservices.com/Home/Working-Hours'
+  ROTA: 'https://memployees.sportsdirectservices.com/Home/Working-Hours',
 };
 
 function getOAuthClient() {
@@ -31,13 +34,13 @@ function requestToken() {
     access_type: 'offline',
     scope: conf.SCOPES,
   });
-  
+
   console.log('Authorize this app by visiting this url:', authUrl);
-  const rl = readline.createInterface({ 
-    input: process.stdin, 
-    output: process.stdout 
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
   });
-  
+
   rl.question('Enter the code here: ', code => {
     rl.close();
     oAuth2Client.getToken(code, (err, token) => {
@@ -67,20 +70,6 @@ async function createEvent(event) {
   }
 }
 
-function createShiftEvent(date, start, end, summary = 'Sports Direct shift') {
-  return {
-    summary,
-    start: {
-      dateTime: moment.tz(`${date} ${start}`, 'DD MMM YYYY HH:mm', 'Europe/London').format(),
-      timeZone: 'Europe/Belfast',
-    },
-    end: {
-      dateTime: moment.tz(`${date} ${end}`, 'DD MMM YYYY HH:mm', 'Europe/London').format(),
-      timeZone: 'Europe/Belfast',
-    },
-  };
-}
-
 async function loginAndScrape() {
   let browser;
   try {
@@ -101,33 +90,37 @@ async function loginAndScrape() {
         const text = node.innerText.split('-')[1].trim();
         return text.slice(1, -1);
       };
-      
+
       const scrapeTable = (table, weekDate) => {
         const week = [weekDate];
         table.querySelectorAll('tr').forEach(row => {
           const day = row.cells[0].innerText;
           const start = row.cells[1].innerText.match(/\d\d:\d\d/);
           const end = row.cells[2].innerText.match(/\d\d:\d\d/);
-          
+
           if (start && end) {
-            week.push({ 
-              day, 
-              start: start[0], 
-              end: end[0] 
+            week.push({
+              day,
+              start: start[0],
+              end: end[0],
             });
           }
         });
         return week;
       };
-      
+
       const bodies = document.querySelectorAll('tbody');
       const thisWeekDate = parseDate(
-        document.querySelector('#dnn_ctr454_ModuleContent > div > div:nth-child(1) > div > h3')
+        document.querySelector(
+          '#dnn_ctr454_ModuleContent > div > div:nth-child(1) > div > h3'
+        )
       );
       const nextWeekDate = parseDate(
-        document.querySelector('#dnn_ctr454_WorkingHoursView_NextWeekPanel > div:nth-child(1) > div > h3')
+        document.querySelector(
+          '#dnn_ctr454_WorkingHoursView_NextWeekPanel > div:nth-child(1) > div > h3'
+        )
       );
-      
+
       return {
         thisWeek: scrapeTable(bodies[0], thisWeekDate),
         nextWeek: scrapeTable(bodies[1], nextWeekDate),
@@ -149,11 +142,9 @@ async function main() {
   try {
     const shifts = await loginAndScrape();
     const nextWeekDate = shifts.nextWeek[0];
-    
+
     shifts.nextWeek.slice(1).forEach(shift => {
-      const date = moment(nextWeekDate, 'DD MMM YYYY')
-        .day(shift.day)
-        .format('DD MMM YYYY');
+      const date = resolveShiftDate(nextWeekDate, shift.day);
       const event = createShiftEvent(date, shift.start, shift.end);
       createEvent(event);
     });
@@ -162,4 +153,10 @@ async function main() {
   }
 }
 
-main();
+// `node app.js auth` runs the one-time Google OAuth flow and stores a token;
+// any other invocation scrapes the rota and creates calendar events.
+if (process.argv[2] === 'auth') {
+  requestToken();
+} else {
+  main();
+}

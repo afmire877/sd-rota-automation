@@ -93,5 +93,9 @@ typings/
 .dynamodb/
 
 # End of https://www.gitignore.io/api/node
+
+# Local credentials & secrets
 keys.js
+client_secret.json
+token.json
 node_modules

@@ -1,19 +1,31 @@
 {
   "name": "sd-rota-automation",
   "version": "1.0.0",
-  "description": "A simple Rota automation app, creates google calender events",
+  "description": "A simple Rota automation app, creates google calendar events",
   "main": "app.js",
-  "scripts": {
-    "test": "node ."
+  "engines": {
+    "node": ">=20.6"
   },
-  "author": "",
+  "scripts": {
+    "start": "node --env-file=.env app.js",
+    "auth": "node --env-file=.env app.js auth",
+    "test": "node --test",
+    "lint": "eslint .",
+    "format": "prettier --write ."
+  },
+  "author": "afmire877",
   "license": "ISC",
   "dependencies": {
     "googleapis": "^39.2.0",
     "moment": "^2.24.0",
     "moment-timezone": "^0.5.26",
-    "os": "^0.1.1",
-    "path": "^0.12.7",
     "puppeteer": "^1.18.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9",
+    "eslint": "^9",
+    "eslint-config-prettier": "^9",
+    "globals": "^15",
+    "prettier": "^3"
   }
 }
