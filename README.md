@@ -6,7 +6,7 @@ This project automates adding work shifts from the Sports Direct employee portal
 
 - Headless login to the Sports Direct portal
 - Extracts weekly shift information
-- Automatically creates events in your Google Calendar
+- Idempotently creates or updates events in your Google Calendar
 
 ## Requirements
 
@@ -56,7 +56,7 @@ yarn auth
 This prints an authorization URL — visit it, grant access, and paste the
 resulting code back into the terminal.
 
-Then run the sync to scrape your rota and create the calendar events:
+Then run the sync to scrape your rota and reconcile the calendar events:
 
 ```bash
 yarn start
@@ -75,8 +75,9 @@ yarn start
 ## Project structure
 
 ```
-app.js            Orchestration: login, scrape, OAuth, create events
+app.js            Orchestration: login, scrape, OAuth, sync events
 lib/shifts.js     Pure shift helpers (createShiftEvent, resolveShiftDate)
+lib/calendar.js   Idempotent Google Calendar synchronization
 config.js         Resolves portal credentials from env (keys.js fallback)
 conf.js           Calendar/OAuth configuration (env-overridable)
 test/             Unit tests for the pure logic
@@ -84,10 +85,21 @@ test/             Unit tests for the pure logic
 
 ## Known limitations
 
-- The scraper relies on hardcoded portal CSS selectors (in `app.js`). If Sports
-  Direct change their page markup, the selectors will need updating.
-- Re-running `yarn start` does not de-duplicate; it creates fresh events each
-  time rather than reconciling existing ones.
+- The portal does not expose a supported API, so the scraper still depends on
+  portal CSS selectors. It now waits for the required visible elements and
+  navigation instead of relying on a fixed delay, but markup changes can still
+  require selector updates.
+- Events created before this version do not contain the private sync identifier
+  and cannot be matched automatically. The first run may therefore duplicate
+  an older event once; subsequent runs reconcile events created by this tool.
+
+## Credential safety
+
+Never commit `.env`, `client_secret.json`, `token.json`, or the legacy `keys.js`.
+They are ignored by Git. Use a dedicated Google Cloud OAuth client, grant only
+Calendar access, and revoke the client/token from your Google account if either
+file is exposed. Environment variables are preferred for portal credentials;
+`keys.js` remains supported only for backward compatibility.
 
 ## License
 

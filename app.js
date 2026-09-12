@@ -5,8 +5,7 @@ const { google } = require('googleapis');
 const conf = require('./conf');
 const { getCredentials } = require('./config');
 const { createShiftEvent, resolveShiftDate } = require('./lib/shifts');
-
-const credentials = getCredentials();
+const { syncShiftEvent } = require('./lib/calendar');
 
 const SELECTORS = {
   USERNAME: '#dnn_ctr462_Login_Login_DNN_txtUsername',
@@ -57,19 +56,6 @@ function getCalendarClient() {
   return google.calendar({ version: 'v3', auth: oauth2Client });
 }
 
-async function createEvent(event) {
-  try {
-    const calendar = getCalendarClient();
-    const res = await calendar.events.insert({
-      calendarId: conf.CALENDAR_ID,
-      resource: event,
-    });
-    console.log('Event created:', res.data.htmlLink);
-  } catch (err) {
-    console.error('Calendar error:', err);
-  }
-}
-
 async function loginAndScrape() {
   let browser;
   try {
@@ -77,15 +63,23 @@ async function loginAndScrape() {
     const page = await browser.newPage();
     await page.goto(URLS.LOGIN, { waitUntil: 'networkidle2' });
 
+    const credentials = getCredentials();
+    await page.waitForSelector(SELECTORS.USERNAME, { visible: true });
+    await page.waitForSelector(SELECTORS.PASSWORD, { visible: true });
     await page.type(SELECTORS.USERNAME, credentials.payroll);
     await page.type(SELECTORS.PASSWORD, credentials.password);
-    await page.click(SELECTORS.LOGIN_BUTTON);
-    await page.waitForTimeout(1000);
+    await page.waitForSelector(SELECTORS.LOGIN_BUTTON, { visible: true });
+    await Promise.all([
+      page.waitForNavigation({ waitUntil: 'networkidle2' }),
+      page.click(SELECTORS.LOGIN_BUTTON),
+    ]);
 
-    const rota = await browser.newPage();
-    await rota.goto(URLS.ROTA, { waitUntil: 'networkidle2' });
+    await page.goto(URLS.ROTA, { waitUntil: 'networkidle2' });
+    await page.waitForSelector(SELECTORS.THIS_WEEK_HEADER, { visible: true });
+    await page.waitForSelector(SELECTORS.NEXT_WEEK_HEADER, { visible: true });
+    await page.waitForSelector('tbody');
 
-    const data = await rota.evaluate(() => {
+    const data = await page.evaluate(() => {
       const parseDate = node => {
         const text = node.innerText.split('-')[1].trim();
         return text.slice(1, -1);
@@ -142,14 +136,17 @@ async function main() {
   try {
     const shifts = await loginAndScrape();
     const nextWeekDate = shifts.nextWeek[0];
+    const calendar = getCalendarClient();
 
-    shifts.nextWeek.slice(1).forEach(shift => {
+    for (const shift of shifts.nextWeek.slice(1)) {
       const date = resolveShiftDate(nextWeekDate, shift.day);
       const event = createShiftEvent(date, shift.start, shift.end);
-      createEvent(event);
-    });
+      const result = await syncShiftEvent(calendar, conf.CALENDAR_ID, event);
+      console.log(`Event ${result.action}:`, result.event.htmlLink || result.event.id);
+    }
   } catch (err) {
     console.error('Main function error:', err);
+    process.exitCode = 1;
   }
 }
 
